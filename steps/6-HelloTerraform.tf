@@ -1,5 +1,5 @@
 # Bash is OK for playing around, but you need a way to delete everything
-# you've made to keep things reproducable.  Terraform is one such way.
+# you've made to keep things reproducible.  Terraform is one such way.
 
 # It's a bit crap in that it doesn't query the state of your AWS account, 
 # but instead makes a local cache of the /bits/ of the account that a
@@ -21,8 +21,8 @@ provider "aws" {
 #
 # Add Lambda and role
 #
-resource "aws_lambda_function" "helloapi" {
-  function_name = "helloapi"
+resource "aws_lambda_function" "helloapitf" {
+  function_name = "helloapitf"
   filename = "todeploy.zip"
   handler = "entrypoint.handler"
   runtime = "nodejs8.10"
@@ -30,7 +30,7 @@ resource "aws_lambda_function" "helloapi" {
 }
 
 resource "aws_iam_role" "lambda_exec" {
-  name = "basic_lambda_role"
+  name = "basic_lambda_role_tf"
   assume_role_policy = <<EOF
 {
 	"Version": "2012-10-17",
@@ -52,55 +52,56 @@ EOF
 #    - Methods: POST/GET etc.  ANY for now.
 #    - An "integration". What handles /foo upstream? In this case a Lambda
 #  - Deployments "deployment".  e.g. dev/test/prod 
-resource "aws_api_gateway_rest_api" "helloapi" {
-  name        = "helloapi"
-  description = "A simple example"
+resource "aws_api_gateway_rest_api" "helloapitf" {
+  name        = "helloapitf"
+  description = "A simple example" 
 }
 
 resource "aws_api_gateway_resource" "proxy" {
-  rest_api_id = "${aws_api_gateway_rest_api.helloapi.id}"
-  parent_id   = "${aws_api_gateway_rest_api.helloapi.root_resource_id}"
+  rest_api_id = "${aws_api_gateway_rest_api.helloapitf.id}"
+  parent_id   = "${aws_api_gateway_rest_api.helloapitf.root_resource_id}"
   path_part   = "{proxy+}"
 }
 
 resource "aws_api_gateway_method" "proxy" {
-  rest_api_id   = "${aws_api_gateway_rest_api.helloapi.id}"
+  rest_api_id   = "${aws_api_gateway_rest_api.helloapitf.id}"
   resource_id   = "${aws_api_gateway_resource.proxy.id}"
   http_method   = "ANY"
   authorization = "NONE"
 }
 
 resource "aws_api_gateway_integration" "lambda" {
-  rest_api_id = "${aws_api_gateway_rest_api.helloapi.id}"
+  rest_api_id = "${aws_api_gateway_rest_api.helloapitf.id}"
   resource_id = "${aws_api_gateway_method.proxy.resource_id}"
   http_method = "${aws_api_gateway_method.proxy.http_method}"
 
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
-  uri                     = "${aws_lambda_function.helloapi.invoke_arn}"
+  uri                     = "${aws_lambda_function.helloapitf.invoke_arn}"
 }
 
-resource "aws_api_gateway_deployment" "helloapi" {
+resource "aws_api_gateway_deployment" "helloapitf" {
   depends_on  = ["aws_api_gateway_integration.lambda"]
-  rest_api_id = "${aws_api_gateway_rest_api.helloapi.id}"
+  rest_api_id = "${aws_api_gateway_rest_api.helloapitf.id}"
   stage_name  = "dev"
 }
 
-# Need to allow APIG to call HelloAPI Lambda
+# Need to allow APIG to call helloapitf Lambda
 resource "aws_lambda_permission" "apigw" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
-  function_name = "${aws_lambda_function.helloapi.arn}"
+  function_name = "${aws_lambda_function.helloapitf.arn}"
   principal     = "apigateway.amazonaws.com"
-  source_arn = "${aws_api_gateway_deployment.helloapi.execution_arn}/*/*"
+  source_arn = "${aws_api_gateway_deployment.helloapitf.execution_arn}/*/*"
 }
 
 # Print out the URL 
 output "base_url" {
-  value = "${aws_api_gateway_deployment.helloapi.invoke_url}"
+  value = "${aws_api_gateway_deployment.helloapitf.invoke_url}"
 }
 
-# Now run it.  Terraform is just a single executable. Install it howerver you want.
+# Now run it.  Terraform is just a single executable. Install it however you want.
+#cp 5-HelloApi.js entrypoint.js && zip todeploy entrypoint.js
 
 # Build the local cache: 
 # terraform init
@@ -111,7 +112,7 @@ output "base_url" {
 # Create everything:
 # terraform apply
 
-# Curl the URL given above - it should be the same as the previous step.
+# Curl the URL given above adding /helloapi?person=Sue
 
 # Now delete everything
 # terraform destroy 
