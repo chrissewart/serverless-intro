@@ -10,10 +10,6 @@
 # The upshot is if you do anything outside of this Terraform script to 
 # things it is dealing with, it'll go wrong. 
 
-# Note: If you've done the previous step, you'll need to delete the 
-# Lambda, Rest API and IAM role. 
-
-
 provider "aws" {
   region = "eu-west-1"
 }
@@ -27,6 +23,7 @@ resource "aws_lambda_function" "helloapitf" {
   handler = "entrypoint.handler"
   runtime = "nodejs8.10"
   role = "${aws_iam_role.lambda_exec.arn}"
+  source_code_hash = "${base64sha256(file("todeploy.zip"))}"
 }
 
 resource "aws_iam_role" "lambda_exec" {
@@ -44,6 +41,12 @@ resource "aws_iam_role" "lambda_exec" {
 }
 EOF
 }
+
+resource "aws_iam_role_policy_attachment" "lambda_logs" {
+  role = "${aws_iam_role.lambda_exec.name}"
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
 
 #
 #  Add the API to the gateway. You need
