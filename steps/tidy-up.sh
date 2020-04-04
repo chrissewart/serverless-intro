@@ -3,8 +3,8 @@ terraform destroy ;#step 6
 aws logs delete-log-group --log-group-name /aws/lambda/helloapitf
 
 # step 5
-apiId=$(aws apigateway get-rest-apis |jq -r '.items[] | select(.name == "helloapi") | .id')
-aws apigateway delete-rest-api --rest-api-id $apiId
+apiId=$(aws apigatewayv2 get-apis |jq -r '.Items[] | select(.Name == "helloapi") | .ApiId')
+aws apigatewayv2 delete-api --api-id $apiId
 aws lambda delete-function --function-name helloapi
 aws logs delete-log-group --log-group-name /aws/lambda/helloapi
 
