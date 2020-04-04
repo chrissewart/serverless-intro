@@ -26,7 +26,7 @@ zip todeploy entrypoint.js
 aws lambda create-function --zip-file fileb://todeploy.zip \
   --function-name helloworld \
   --handler entrypoint.sayHello \
-  --runtime nodejs8.10 \
+  --runtime nodejs12.x \
   --role arn:aws:iam::$awsAccount:role/basic_lambda_role
 
 # Run it

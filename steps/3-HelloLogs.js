@@ -30,7 +30,7 @@ aws iam attach-role-policy \
 
 # The container needs to be restarted to pick up the role change. This is one way:
 aws lambda delete-function --function-name helloworld
-aws lambda create-function --zip-file fileb://todeploy.zip --function-name helloworld --handler entrypoint.sayHello --runtime nodejs8.10 --role arn:aws:iam::$awsAccount:role/basic_lambda_role
+aws lambda create-function --zip-file fileb://todeploy.zip --function-name helloworld --handler entrypoint.sayHello --runtime nodejs12.x --role arn:aws:iam::$awsAccount:role/basic_lambda_role
 
 # Invoke it and cat the output.  It seems to get a bit slower now we've added Cloudwatch logging. 
 aws lambda invoke --function-name helloworld out.txt  && cat out.txt

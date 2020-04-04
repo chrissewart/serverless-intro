@@ -22,7 +22,7 @@ cp 5-HelloApi.js entrypoint.js && zip todeploy entrypoint.js
 aws lambda create-function --zip-file fileb://todeploy.zip \
   --function-name helloapi \
   --handler entrypoint.handler \
-  --runtime nodejs8.10 \
+  --runtime nodejs12.x \
   --role arn:aws:iam::$awsAccount:role/basic_lambda_role
 
 lambdaArn=arn:aws:lambda:eu-west-1:$awsAccount:function:helloapi

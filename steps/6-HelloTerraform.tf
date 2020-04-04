@@ -17,17 +17,8 @@ provider "aws" {
 #
 # Add Lambda and role
 #
-resource "aws_lambda_function" "helloapitf" {
-  function_name = "helloapitf"
-  filename = "todeploy.zip"
-  handler = "entrypoint.handler"
-  runtime = "nodejs8.10"
-  role = "${aws_iam_role.lambda_exec.arn}"
-  source_code_hash = "${base64sha256(file("todeploy.zip"))}"
-}
-
 resource "aws_iam_role" "lambda_exec" {
-  name = "basic_lambda_role_tf"
+  name               = "basic_lambda_role_tf"
   assume_role_policy = <<EOF
 {
 	"Version": "2012-10-17",
@@ -42,11 +33,19 @@ resource "aws_iam_role" "lambda_exec" {
 EOF
 }
 
-resource "aws_iam_role_policy_attachment" "lambda_logs" {
-  role = "${aws_iam_role.lambda_exec.name}"
-  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+resource "aws_lambda_function" "helloapitf" {
+  function_name    = "helloapitf"
+  filename         = "todeploy.zip"
+  handler          = "entrypoint.handler"
+  runtime          = "nodejs12.x"
+  role             = aws_iam_role.lambda_exec.arn
+  source_code_hash = filebase64sha256("todeploy.zip")
 }
 
+resource "aws_iam_role_policy_attachment" "lambda_logs" {
+  role       = aws_iam_role.lambda_exec.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
 
 #
 #  Add the API to the gateway. You need
@@ -57,54 +56,54 @@ resource "aws_iam_role_policy_attachment" "lambda_logs" {
 #  - Deployments "deployment".  e.g. dev/test/prod 
 resource "aws_api_gateway_rest_api" "helloapitf" {
   name        = "helloapitf"
-  description = "A simple example" 
+  description = "A simple example"
 }
 
 resource "aws_api_gateway_resource" "proxy" {
-  rest_api_id = "${aws_api_gateway_rest_api.helloapitf.id}"
-  parent_id   = "${aws_api_gateway_rest_api.helloapitf.root_resource_id}"
+  rest_api_id = aws_api_gateway_rest_api.helloapitf.id
+  parent_id   = aws_api_gateway_rest_api.helloapitf.root_resource_id
   path_part   = "{proxy+}"
 }
 
 # Method repeated twice. Once for / and once for /*
 resource "aws_api_gateway_method" "proxy" {
-  rest_api_id   = "${aws_api_gateway_rest_api.helloapitf.id}"
-  resource_id   = "${aws_api_gateway_resource.proxy.id}"
+  rest_api_id   = aws_api_gateway_rest_api.helloapitf.id
+  resource_id   = aws_api_gateway_resource.proxy.id
   http_method   = "ANY"
   authorization = "NONE"
 }
 
 resource "aws_api_gateway_method" "proxy_root" {
-  rest_api_id   = "${aws_api_gateway_rest_api.helloapitf.id}"
-  resource_id   = "${aws_api_gateway_rest_api.helloapitf.root_resource_id}"
+  rest_api_id   = aws_api_gateway_rest_api.helloapitf.id
+  resource_id   = aws_api_gateway_rest_api.helloapitf.root_resource_id
   http_method   = "ANY"
   authorization = "NONE"
 }
 
 # Integration also repeated twice, once for / method and once for /* mathod
 resource "aws_api_gateway_integration" "lambda" {
-  rest_api_id = "${aws_api_gateway_rest_api.helloapitf.id}"
-  resource_id = "${aws_api_gateway_method.proxy.resource_id}"
-  http_method = "${aws_api_gateway_method.proxy.http_method}"
+  rest_api_id = aws_api_gateway_rest_api.helloapitf.id
+  resource_id = aws_api_gateway_method.proxy.resource_id
+  http_method = aws_api_gateway_method.proxy.http_method
 
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
-  uri                     = "${aws_lambda_function.helloapitf.invoke_arn}"
+  uri                     = aws_lambda_function.helloapitf.invoke_arn
 }
 
 resource "aws_api_gateway_integration" "lambda_root" {
-  rest_api_id = "${aws_api_gateway_rest_api.helloapitf.id}"
-  resource_id = "${aws_api_gateway_method.proxy_root.resource_id}"
-  http_method = "${aws_api_gateway_method.proxy_root.http_method}"
+  rest_api_id = aws_api_gateway_rest_api.helloapitf.id
+  resource_id = aws_api_gateway_method.proxy_root.resource_id
+  http_method = aws_api_gateway_method.proxy_root.http_method
 
   integration_http_method = "POST"
   type                    = "AWS_PROXY"
-  uri                     = "${aws_lambda_function.helloapitf.invoke_arn}"
+  uri                     = aws_lambda_function.helloapitf.invoke_arn
 }
 
 resource "aws_api_gateway_deployment" "helloapitf" {
-  depends_on  = ["aws_api_gateway_integration.lambda"]
-  rest_api_id = "${aws_api_gateway_rest_api.helloapitf.id}"
+  depends_on  = [aws_api_gateway_integration.lambda]
+  rest_api_id = aws_api_gateway_rest_api.helloapitf.id
   stage_name  = "dev"
 }
 
@@ -112,29 +111,31 @@ resource "aws_api_gateway_deployment" "helloapitf" {
 resource "aws_lambda_permission" "apigw" {
   statement_id  = "AllowAPIGatewayInvoke"
   action        = "lambda:InvokeFunction"
-  function_name = "${aws_lambda_function.helloapitf.arn}"
+  function_name = aws_lambda_function.helloapitf.arn
   principal     = "apigateway.amazonaws.com"
-  source_arn = "${aws_api_gateway_deployment.helloapitf.execution_arn}/*"
+  source_arn    = "${aws_api_gateway_deployment.helloapitf.execution_arn}/*"
 }
 
 # Print out the URL 
 output "base_url" {
-  value = "${aws_api_gateway_deployment.helloapitf.invoke_url}"
+  value = aws_api_gateway_deployment.helloapitf.invoke_url
 }
 
+/*
 # Now run it.  Terraform is just a single executable. Install it however you want.
-#cp 5-HelloApi.js entrypoint.js && zip todeploy entrypoint.js
+cp 5-HelloApi.js entrypoint.js && zip todeploy entrypoint.js
 
 # Build the local cache: 
-# terraform init
+terraform init
 
 # See what it would do:
-# terraform plan
+terraform plan
 
 # Create everything:
-# terraform apply
+terraform apply
 
 # Curl the URL given above adding /helloapi?person=Sue
 
 # Now delete everything
-# terraform destroy 
+terraform destroy 
+*/
